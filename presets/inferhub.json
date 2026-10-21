@@ -1,0 +1,65 @@
+{
+  "$comment": "Route table for an [OI]-compatible marketplace (inferhub.dev shape: ns/model ids). Verified 2026-10-22 — see presets/INFERHUB.md. Use: route --preset presets/inferhub.json ...",
+  "version": 1,
+  "default_backend": "hermes",
+  "routes": {
+    "quick": {
+      "description": "Small, well-specified change. Verified: passes the parse-duration bench in one shot.",
+      "model": "cb/deepseek-v4.1-flash",
+      "effort": "low",
+      "checks": ["tests for the touched files"]
+    },
+    "build": {
+      "description": "Normal feature or fix. Tier below the top model, ~7-9x the quick route per task.",
+      "model": "cx/gpt-6.1-sol",
+      "effort": "medium",
+      "checks": ["tests", "typecheck", "lint"]
+    },
+    "deep": {
+      "description": "Architecture, migrations, auth, payments, data, or anything unclear.",
+      "model": "cx/gpt-6.1-sol",
+      "effort": "xhigh",
+      "checks": ["full test suite", "typecheck", "lint", "read the diff"]
+    },
+    "escalate": {
+      "description": "Only after a failed check. Different family, so a bad assumption is not repeated.",
+      "model": "ali/kimi-k3",
+      "effort": "high",
+      "checks": ["full test suite", "typecheck", "lint", "read the diff"]
+    },
+    "verify": {
+      "description": "Checks a finished change. Never edits code.",
+      "model": "cb/deepseek-v4.1-flash",
+      "effort": "low",
+      "checks": ["run the checks the route asked for"]
+    }
+  },
+  "escalation": {
+    "quick": "build",
+    "build": "deep",
+    "deep": "escalate",
+    "escalate": null
+  },
+  "backends": {
+    "hermes": {
+      "command": ["hermes", "chat", "-q", "{task}", "-m", "{model}", "--reasoning", "{effort}", "-Q"]
+    },
+    "claude": {
+      "command": ["claude", "-p", "{task}", "--model", "{model}"]
+    },
+    "codex": {
+      "command": ["codex", "exec", "{task}", "-m", "{model}", "-c", "model_reasoning_effort={effort}"]
+    },
+    "curl": {
+      "command": ["bash", "presets/call.sh", "{model}", "{effort}", "{task}"],
+      "note": "For a raw HTTP call: reads OPENAI_BASE_URL / OPENAI_API_KEY from the environment."
+    }
+  },
+  "avoid": {
+    "$comment": "Advertised but not serving on 2026-10-22. Re-probe before believing this list.",
+    "payment_required": ["cx/gpt-6-luna", "cx/gpt-5.6-luna", "zai/glm-5.3-flash", "kiro/gpt-5.6-luna", "ocg/glm-5.3-flash"],
+    "rate_limited": ["cx/gpt-6-astra", "cb/minimax-m3", "mm/MiniMax-M3", "grok/grok-4.7"],
+    "unavailable": ["ocg/deepseek-v4.1-flash", "ocg/kimi-k2.7-code", "ocg/gpt-6-luna", "cmc/gpt-6-luna", "cmc/deepseek/deepseek-v4.1-flash"],
+    "fails_code_bench": ["cb/glm-5.3-flash", "cb/kimi-k2.7"]
+  }
+}

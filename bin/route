@@ -1,0 +1,153 @@
+#!/usr/bin/env python3
+"""route — send a task to the cheapest model tier that can finish it, escalate only on failure.
+
+Dependency-free (stdlib only). Reads routes.json next to this script, or --preset FILE.
+
+    route quick "rename foo() to bar() across src/"
+    route build "add pagination to /api/orders" --verify "npm test"
+    route auto  "the checkout webhook double-charges on retry" --verify "pytest -q"
+    route deep  "migrate billing from Stripe v2 to v3" --dry-run
+
+Exit codes: 0 = finished and the check passed (or no check given), 1 = failed after escalation,
+2 = usage/config error.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import shutil
+import subprocess
+import sys
+import time
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
+DEFAULT_TABLE = os.path.join(ROOT, "routes.json")
+
+TRIAGE_PROMPT = """Classify this coding task. Reply with JSON only, no prose, no fences:
+
+{"route": "quick|build|deep", "risk": "low|medium|high", "checks": ["tests","typecheck","lint","review"]}
+
+- quick: small and well-specified, one or two files, no design decisions
+- build: a normal feature or bug fix with a known shape
+- deep: architecture, migrations, auth, payments, data, or anything unclear
+
+Task:
+{task}
+"""
+
+
+def load_table(path: str) -> dict:
+    with open(path, encoding="utf-8") as fh:
+        table = json.load(fh)
+    for key in ("routes", "backends"):
+        if key not in table:
+            sys.exit(f"route: {path} has no '{key}' section")
+    return table
+
+
+def build_command(backend: dict, route: dict, task: str) -> list[str]:
+    template = backend.get("command")
+    if not template:
+        sys.exit("route: backend has no 'command'")
+    out = []
+    for part in template:
+        out.append(
+            part.replace("{task}", task)
+            .replace("{model}", str(route.get("model", "")))
+            .replace("{effort}", str(route.get("effort", "")))
+        )
+    return out
+
+
+def run(cmd: list[str], dry: bool) -> tuple[int, float]:
+    print("$ " + " ".join(cmd), file=sys.stderr)
+    if dry:
+        return 0, 0.0
+    started = time.time()
+    try:
+        code = subprocess.call(cmd)
+    except FileNotFoundError:
+        sys.exit(f"route: command not found: {cmd[0]}")
+    return code, time.time() - started
+
+
+def run_check(check: str, dry: bool) -> int:
+    print(f"$ {check}", file=sys.stderr)
+    if dry:
+        return 0
+    return subprocess.call(check, shell=True)
+
+
+def triage(table: dict, task: str, backend_name: str, dry: bool) -> str:
+    """Ask the cheap route to classify the task. Falls back to 'build' on any doubt."""
+    route = table["routes"].get("verify") or table["routes"]["quick"]
+    cmd = build_command(table["backends"][backend_name], route, TRIAGE_PROMPT.replace("{task}", task))
+    print("$ " + " ".join(cmd), file=sys.stderr)
+    if dry:
+        return "build"
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+    except subprocess.TimeoutExpired:
+        return "build"
+    text = (proc.stdout or "") + (proc.stderr or "")
+    start, end = text.find("{"), text.rfind("}")
+    if start == -1 or end == -1:
+        return "build"
+    try:
+        return json.loads(text[start : end + 1]).get("route", "build")
+    except json.JSONDecodeError:
+        return "build"
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(prog="route", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("route", help="quick | build | deep | verify | auto")
+    ap.add_argument("task", help="the task text handed to the agent")
+    ap.add_argument("--verify", default=None, help="shell command that proves the work; run after the agent")
+    ap.add_argument("--max-escalations", type=int, default=1, help="how many tiers to climb on failure (default 1)")
+    ap.add_argument("--backend", default=None, help="backend name from routes.json (default: its default_backend)")
+    ap.add_argument("--preset", default=None, help="path to a routes table (default: ./routes.json)")
+    ap.add_argument("--dry-run", action="store_true", help="print the commands without running them")
+    args = ap.parse_args()
+
+    table = load_table(args.preset or DEFAULT_TABLE)
+    backend_name = args.backend or table.get("default_backend", "hermes")
+    if backend_name not in table["backends"]:
+        sys.exit(f"route: unknown backend '{backend_name}' (have: {', '.join(table['backends'])})")
+
+    name = triage(table, args.task, backend_name, args.dry_run) if args.route == "auto" else args.route
+    if name not in table["routes"]:
+        sys.exit(f"route: unknown route '{name}' (have: {', '.join(table['routes'])})")
+
+    if args.dry_run is False and shutil.which(table["backends"][backend_name]["command"][0]) is None:
+        print(f"route: warning: '{table['backends'][backend_name]['command'][0]}' is not on PATH", file=sys.stderr)
+
+    escalations = 0
+    while True:
+        route = table["routes"][name]
+        print(f"\n== route: {name}  model: {route['model']}  effort: {route['effort']}", file=sys.stderr)
+        code, elapsed = run(build_command(table["backends"][backend_name], route, args.task), args.dry_run)
+        if code != 0:
+            print(f"route: agent exited {code} after {elapsed:.0f}s", file=sys.stderr)
+
+        if args.verify is None:
+            return 0 if code == 0 else 1
+
+        if run_check(args.verify, args.dry_run) == 0:
+            print(f"route: check passed on '{name}' ({elapsed:.0f}s)", file=sys.stderr)
+            return 0
+
+        nxt = (table.get("escalation") or {}).get(name)
+        if not nxt or escalations >= args.max_escalations:
+            print(f"route: check failed and no escalation left — stopping at '{name}'", file=sys.stderr)
+            return 1
+        escalations += 1
+        print(f"route: check failed — escalating {name} -> {nxt} (attempt {escalations})", file=sys.stderr)
+        name = nxt
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,10 @@
+# local measurement output
+benchmarks/results.json
+route-smoke-flag
+
+# never commit keys
+.env
+*.key
+
+__pycache__/
+*.pyc

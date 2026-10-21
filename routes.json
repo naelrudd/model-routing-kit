@@ -1,0 +1,52 @@
+{
+  "$comment": "Route table for bin/route. Edit models to match your provider. '{task}' is replaced with the prompt.",
+  "version": 1,
+  "default_backend": "hermes",
+  "routes": {
+    "quick": {
+      "description": "Small, well-specified change: one or two files, no design decisions.",
+      "model": "cb/deepseek-v4.1-flash",
+      "effort": "low",
+      "checks": ["tests for the touched files"]
+    },
+    "build": {
+      "description": "Normal feature or bug fix with a known shape.",
+      "model": "cx/gpt-6.1-sol",
+      "effort": "medium",
+      "checks": ["tests", "typecheck", "lint"]
+    },
+    "deep": {
+      "description": "Architecture, migrations, auth, payments, data, or anything unclear.",
+      "model": "cx/gpt-6.1-sol",
+      "effort": "xhigh",
+      "checks": ["full test suite", "typecheck", "lint", "read the diff"]
+    },
+    "verify": {
+      "description": "Check a finished change. Never edits code.",
+      "model": "cb/deepseek-v4.1-flash",
+      "effort": "low",
+      "checks": ["run the checks the route asked for"]
+    }
+  },
+  "escalation": {
+    "quick": "build",
+    "build": "deep",
+    "deep": null
+  },
+  "backends": {
+    "hermes": {
+      "command": ["hermes", "chat", "-q", "{task}", "-m", "{model}", "--reasoning", "{effort}", "-Q"]
+    },
+    "claude": {
+      "command": ["claude", "-p", "{task}", "--model", "{model}"],
+      "note": "Claude Code: effort comes from the agent file or CLAUDE_CODE_EFFORT_LEVEL, not the CLI."
+    },
+    "codex": {
+      "command": ["codex", "exec", "{task}", "-m", "{model}", "-c", "model_reasoning_effort={effort}"]
+    },
+    "custom": {
+      "command": ["./your-agent", "--model", "{model}", "--task", "{task}"],
+      "note": "Any CLI: keep {model}, {effort} and {task} placeholders."
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "default_backend": "echo",
+  "routes": {
+    "quick": { "model": "cheap-model", "effort": "low" },
+    "build": { "model": "mid-model", "effort": "medium" },
+    "deep": { "model": "top-model", "effort": "xhigh" },
+    "verify": { "model": "cheap-model", "effort": "low" }
+  },
+  "escalation": { "quick": "build", "build": "deep", "deep": null },
+  "backends": {
+    "echo": { "command": ["bash", "-c", "echo ran {model} at {effort}"] }
+  }
+}
