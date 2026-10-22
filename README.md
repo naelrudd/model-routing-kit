@@ -8,6 +8,8 @@ Hermes, [CC], Codex, or your own.
 route auto "add pagination to /api/orders" --verify "npm test"
 ```
 
+New here? Start with **[GETTING-STARTED.md](GETTING-STARTED.md)**.
+
 ```
 == route: build  model: cx/gpt-6.1-sol  effort: medium
 ...agent works...
@@ -47,6 +49,9 @@ Plus `verify`: a separate pass that only runs checks and never edits code.
 costs you a failed run is not — that is why every route still ends in a check.
 
 ## Install
+
+New here? **[GETTING-STARTED.md](GETTING-STARTED.md)** has three paths — 5 minutes by hand, 10
+minutes with the CLI, or wiring it into your agent permanently.
 
 ```bash
 git clone https://github.com/naelrudd/model-routing-kit
