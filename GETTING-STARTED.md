@@ -10,16 +10,19 @@ cd model-routing-kit
 
 ## Path A — 5 minutes, no install: use the ladder by hand
 
-The route table is just three model names and three effort levels. Read
-[`presets/inferhub.json`](presets/inferhub.json) and copy the model ids into whatever you already
-use:
+The route table is just three model placeholders and three effort levels. Read
+[`routes.json`](routes.json), replace `cheap-model`, `mid-model` and `top-model` with the model
+ids from your own provider, and copy the result into whatever you already use:
 
 | you are about to… | use | effort |
 |---|---|---|
-| rename something, add a guard clause, tweak CSS | `cb/deepseek-v4.1-flash` | low |
-| build a feature or fix a real bug | `cx/gpt-6.1-sol` | medium |
-| touch auth, money, migrations, or anything unclear | `cx/gpt-6.1-sol` | xhigh |
-| check finished work | `cb/deepseek-v4.1-flash` | low |
+| rename something, add a guard clause, tweak CSS | `cheap-model` | low |
+| build a feature or fix a real bug | `mid-model` | medium |
+| touch auth, money, migrations, or anything unclear | `top-model` | xhigh |
+| check finished work | `cheap-model` | low |
+
+The placeholders do nothing on their own. Before you trust the ladder, measure your own models
+with `benchmarks/bench.py` — see "Measure before you trust the table" below.
 
 Then, before you call it done, run the check yourself. That is the whole method; the rest is
 automation of it.
@@ -53,7 +56,9 @@ Useful flags:
 ```
 
 Point it at your own models by editing `routes.json`: each route is `model` + `effort` + `checks`,
-each backend is a command template with `{task}`, `{model}`, `{effort}`.
+each backend is a command template with `{task}`, `{model}`, `{effort}`. For the raw-HTTP
+(`curl`) backend, set `OPENAI_BASE_URL` and `OPENAI_API_KEY` — any OpenAI-compatible endpoint
+works, no provider is hardcoded; bring your own key and endpoint.
 
 ## Path C — make it the default: wire the agent itself
 

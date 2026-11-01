@@ -1,29 +1,29 @@
 {
-  "$comment": "Route table for bin/route. Edit models to match your provider. '{task}' is replaced with the prompt.",
+  "$comment": "Route table for bin/route. PLACEHOLDERS ONLY: replace cheap-model / mid-model / top-model with your own model ids before use. '{task}' is replaced with the prompt.",
   "version": 1,
   "default_backend": "hermes",
   "routes": {
     "quick": {
       "description": "Small, well-specified change: one or two files, no design decisions.",
-      "model": "cb/deepseek-v4.1-flash",
+      "model": "cheap-model",
       "effort": "low",
       "checks": ["tests for the touched files"]
     },
     "build": {
       "description": "Normal feature or bug fix with a known shape.",
-      "model": "cx/gpt-6.1-sol",
+      "model": "mid-model",
       "effort": "medium",
       "checks": ["tests", "typecheck", "lint"]
     },
     "deep": {
       "description": "Architecture, migrations, auth, payments, data, or anything unclear.",
-      "model": "cx/gpt-6.1-sol",
+      "model": "top-model",
       "effort": "xhigh",
       "checks": ["full test suite", "typecheck", "lint", "read the diff"]
     },
     "verify": {
       "description": "Check a finished change. Never edits code.",
-      "model": "cb/deepseek-v4.1-flash",
+      "model": "cheap-model",
       "effort": "low",
       "checks": ["run the checks the route asked for"]
     }
@@ -43,6 +43,10 @@
     },
     "codex": {
       "command": ["codex", "exec", "{task}", "-m", "{model}", "-c", "model_reasoning_effort={effort}"]
+    },
+    "curl": {
+      "command": ["bash", "presets/call.sh", "{model}", "{effort}", "{task}"],
+      "note": "For a raw HTTP call to any OpenAI-compatible endpoint: reads OPENAI_BASE_URL / OPENAI_API_KEY from the environment. Bring your own key and endpoint."
     },
     "custom": {
       "command": ["./your-agent", "--model", "{model}", "--task", "{task}"],

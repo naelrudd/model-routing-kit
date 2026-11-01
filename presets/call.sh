@@ -7,7 +7,7 @@ model="${1:?model}"
 effort="${2:-}"
 task="${3:?task}"
 
-: "${OPENAI_BASE_URL:?set OPENAI_BASE_URL (e.g. https://api.inferhub.dev/v1)}"
+: "${OPENAI_BASE_URL:?set OPENAI_BASE_URL (e.g. https://your-endpoint/v1)}"
 : "${OPENAI_API_KEY:?set OPENAI_API_KEY}"
 
 payload=$(MODEL="$model" EFFORT="$effort" TASK="$task" python - <<'PY'

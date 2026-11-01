@@ -9,7 +9,7 @@ route auto "add pagination to /api/orders" --verify "npm test"
 New here? Start with **[GETTING-STARTED.md](GETTING-STARTED.md)**.
 
 ```
-== route: build  model: cx/gpt-6.1-sol  effort: medium
+== route: build  model: mid-model  effort: medium
 ...agent works...
 $ npm test
 route: check passed on 'build' (94s)
@@ -17,7 +17,7 @@ route: check passed on 'build' (94s)
 
 If the check fails it climbs exactly one tier (more effort first, then a bigger model), then stops and tells you. No silent "done".
 
-> The models in the shipped `routes.json` are examples for one provider setup. Edit the model names, effort values, and backend commands to match your own provider before relying on the cost claims below — in the shipped table, `build` and `deep` name the same model, so "escalate to a bigger model" only happens if you configure a bigger model for the higher tier.
+> The shipped `routes.json` uses placeholders only (`cheap-model`, `mid-model`, `top-model`). Replace them with your own model ids before use — a clone does not run against any real provider until you do. No measured results are shipped with this kit; measure your own models with `benchmarks/bench.py` before relying on the cost claims below.
 
 ---
 
@@ -64,6 +64,7 @@ route quick "rename foo() to bar() in src/" --dry-run
 | `hermes` | `hermes chat -q "{task}" -m {model} --reasoning {effort} -Q` |
 | `claude` | `claude -p "{task}" --model {model}` (effort comes from the agent file) |
 | `codex` | `codex exec "{task}" -m {model} -c model_reasoning_effort={effort}` |
+| `curl` | `bash presets/call.sh {model} {effort} {task}` — raw HTTP to any OpenAI-compatible endpoint, reads `OPENAI_BASE_URL` / `OPENAI_API_KEY` from the environment (bring your own key and endpoint) |
 | `custom` | anything you like — keep the three placeholders |
 
 `--verify` runs through the platform shell (`bash` on POSIX, `cmd.exe` on Windows), so keep the check command simple or wrap it in a script.
@@ -86,7 +87,7 @@ routes.json              # the route table: models, efforts, checks, backend com
 bin/route                # the dispatcher: run, verify, escalate once, stop
 prompts/triage.md        # classifier prompt (JSON out)
 prompts/verifier.md      # PASS/FAIL with evidence, never edits
-presets/inferhub.json    # measured model ladder for an OpenAI-compatible marketplace
+presets/call.sh           # raw-HTTP backend for any OpenAI-compatible endpoint (bring your own key)
 benchmarks/bench.py      # measure your own models before you trust the table
 benchmarks/RESULTS.md    # numbers this repo was built from, with the method
 adapters/                # drop-in config for Hermes, Claude Code, Codex
